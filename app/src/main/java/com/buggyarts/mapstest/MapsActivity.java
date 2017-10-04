@@ -5,6 +5,7 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -36,9 +37,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Marker locationMarker;
     private LatLng locationLatLng;
     private LocationModel locationModel;
+    private GeofenceModel geofenceModel;
 
-    private DatabaseReference mDatabase;
+    private DatabaseReference locationDatabase;
+    private DatabaseReference geofenceDatabase;
     private ChildEventListener childEventListener;
+    private ValueEventListener geofenceEventListener;
     private ValueEventListener locationEventListener;
     int initial = 0;
 
@@ -50,7 +54,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
 //        polylineOptions = new PolylineOptions().geodesic(true);
-//        mDatabase = FirebaseDatabase.getInstance().getReference().child("raw-locations/up32ht5317");
+//        locationDatabase = FirebaseDatabase.getInstance().getReference().child("raw-locations/up32ht5317");
 //        childEventListener = getChildEventListener();
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -58,18 +62,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        mDatabase = FirebaseDatabase.getInstance().getReference().child("location");
+        locationDatabase = FirebaseDatabase.getInstance().getReference().child("location");
+        geofenceDatabase = FirebaseDatabase.getInstance().getReference().child("geofence");
         locationEventListener = getLocationEventListener();
+        geofenceEventListener = getGeofenceEventListener();
         locationModel = new LocationModel();
+        geofenceModel = new GeofenceModel();
 
-//        mDatabase.addChildEventListener(getChildEventListener());
+//        locationDatabase.addChildEventListener(getChildEventListener());
     }
 
     @Override
     protected void onPause() {
         super.onPause();
 //        Log.e(TAG, "onPause: Listener removed");
-//        mDatabase.removeEventListener(childEventListener);
+//        locationDatabase.removeEventListener(childEventListener);
     }
 
     @Override
@@ -81,8 +88,12 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     protected void onStop() {
         super.onStop();
         if(locationEventListener != null){
-            Log.e(TAG, "onStop: Listener removed");
-            mDatabase.removeEventListener(locationEventListener);
+            Log.e(TAG, "onStop: location Listener removed");
+            locationDatabase.removeEventListener(locationEventListener);
+        }
+        if(geofenceEventListener != null){
+            Log.e(TAG, "onStop: geofence Listener removed");
+            geofenceDatabase.removeEventListener(geofenceEventListener);
         }
     }
 
@@ -95,6 +106,27 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 locationMarker.setPosition(new LatLng(locationModel.getLat(), locationModel.getLng()));
                 locationMarker.setRotation(locationModel.getBearing());
                 locationMarker.setSnippet("Speed: " + locationModel.getSpeed());
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        };
+    }
+
+    private ValueEventListener getGeofenceEventListener(){
+        return new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                Log.e(TAG, "onDataChange: " + dataSnapshot.toString());
+                if(dataSnapshot.getValue() != null){
+                    geofenceModel.updateModel(dataSnapshot.getValue(GeofenceModel.class));
+                    Toast.makeText(getApplication(), geofenceModel.toString(), Toast.LENGTH_LONG).show();
+                }
+                else {
+                    Toast.makeText(getApplicationContext(), "null object", Toast.LENGTH_SHORT).show();
+                }
             }
 
             @Override
@@ -178,7 +210,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //        mMap.addMarker(new MarkerOptions()
 //        .position(new LatLng(28.5642101, 77.3320011)).title("Botanical Metro"));
 //        mMap.addPolyline(polylineOptions);
-//        mDatabase.addChildEventListener(childEventListener);
+//        locationDatabase.addChildEventListener(childEventListener);
 
         findDirections(28.5090167, 77.372687, 28.5642101, 77.3320011, GMapV2Direction.MODE_DRIVING);
 //        GoogleDirection.withServerKey(getString(R.string.google_maps_key))
@@ -225,7 +257,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         .icon(BitmapDescriptorFactory.fromResource(R.drawable.direction))
         .title("Bus UP12")
         .flat(true).position(locationLatLng));
-        mDatabase.addValueEventListener(locationEventListener);
+        locationDatabase.addValueEventListener(locationEventListener);
+        geofenceDatabase.addValueEventListener(geofenceEventListener);
     }
 
 

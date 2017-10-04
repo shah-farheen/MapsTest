@@ -68,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
 //        locationModel = new LocationModel();
 //        mDatabase = FirebaseDatabase.getInstance().getReference().child("location");
 //        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this);
-        mGeofencingClient = LocationServices.getGeofencingClient(this);
+//        mGeofencingClient = LocationServices.getGeofencingClient(this);
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,
@@ -87,19 +87,19 @@ public class MainActivity extends AppCompatActivity {
 //            mFusedLocationClient.removeLocationUpdates(mLocationCallback);
 //        }
 
-        mGeofencingClient.removeGeofences(getGeofencePendingIntent())
-                .addOnSuccessListener(this, new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Toast.makeText(getApplicationContext(), "geofence removed", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .addOnFailureListener(this, new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Toast.makeText(getApplicationContext(), "geofence remove error", Toast.LENGTH_SHORT).show();
-                    }
-                });
+//        mGeofencingClient.removeGeofences(getGeofencePendingIntent())
+//                .addOnSuccessListener(this, new OnSuccessListener<Void>() {
+//                    @Override
+//                    public void onSuccess(Void aVoid) {
+//                        Toast.makeText(getApplicationContext(), "geofence removed", Toast.LENGTH_SHORT).show();
+//                    }
+//                })
+//                .addOnFailureListener(this, new OnFailureListener() {
+//                    @Override
+//                    public void onFailure(@NonNull Exception e) {
+//                        Toast.makeText(getApplicationContext(), "geofence remove error", Toast.LENGTH_SHORT).show();
+//                    }
+//                });
     }
 
     @Override
@@ -173,7 +173,7 @@ public class MainActivity extends AppCompatActivity {
                 });
     }
 
-    @SuppressWarnings("MissingPermission")
+//    @SuppressWarnings("MissingPermission")
 //    private void getLocation(){
 //        mFusedLocationClient.getLastLocation()
 //                .addOnSuccessListener(this, new OnSuccessListener<Location>() {
@@ -214,48 +214,48 @@ public class MainActivity extends AppCompatActivity {
 //        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 //    }
 
-    private Geofence createGeofence(){
-        return new Geofence.Builder()
-                .setRequestId("Office")
-                .setCircularRegion(28.5086399, 77.3782921, 1)
-                .setExpirationDuration(Geofence.NEVER_EXPIRE)
-                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
-                .build();
-    }
+//    private Geofence createGeofence(){
+//        return new Geofence.Builder()
+//                .setRequestId("Office")
+//                .setCircularRegion(28.5086399, 77.3782921, 1)
+//                .setExpirationDuration(Geofence.NEVER_EXPIRE)
+//                .setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER | Geofence.GEOFENCE_TRANSITION_EXIT)
+//                .build();
+//    }
+//
+//    private GeofencingRequest getGeofencingRequest(){
+//        return new GeofencingRequest.Builder()
+//                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
+//                .addGeofence(createGeofence())
+//                .build();
+//    }
 
-    private GeofencingRequest getGeofencingRequest(){
-        return new GeofencingRequest.Builder()
-                .setInitialTrigger(GeofencingRequest.INITIAL_TRIGGER_ENTER)
-                .addGeofence(createGeofence())
-                .build();
-    }
-
-    private PendingIntent getGeofencePendingIntent(){
-        if(mGeofencePendingIntent != null){
-            return mGeofencePendingIntent;
-        }
-        Intent geofenceIntent = new Intent(this, GeofenceTransitionService.class);
-        mGeofencePendingIntent = PendingIntent.getService(this, RC_GEOFENCE_PENDING_INTENT,
-                geofenceIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-        return mGeofencePendingIntent;
-    }
+//    private PendingIntent getGeofencePendingIntent(){
+//        if(mGeofencePendingIntent != null){
+//            return mGeofencePendingIntent;
+//        }
+//        Intent geofenceIntent = new Intent(this, GeofenceTransitionService.class);
+//        mGeofencePendingIntent = PendingIntent.getService(this, RC_GEOFENCE_PENDING_INTENT,
+//                geofenceIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+//        return mGeofencePendingIntent;
+//    }
 
     @SuppressWarnings("MissingPermission")
-    private void addGeofence(){
-        mGeofencingClient.addGeofences(getGeofencingRequest(), getGeofencePendingIntent())
-                .addOnSuccessListener(this, new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void aVoid) {
-                        Log.e(TAG, "onSuccess: geofence added");
-                    }
-                })
-                .addOnFailureListener(this, new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.e(TAG, "onFailure: geofence add failed");
-                    }
-                });
-    }
+//    private void addGeofence(){
+//        mGeofencingClient.addGeofences(getGeofencingRequest(), getGeofencePendingIntent())
+//                .addOnSuccessListener(this, new OnSuccessListener<Void>() {
+//                    @Override
+//                    public void onSuccess(Void aVoid) {
+//                        Log.e(TAG, "onSuccess: geofence added");
+//                    }
+//                })
+//                .addOnFailureListener(this, new OnFailureListener() {
+//                    @Override
+//                    public void onFailure(@NonNull Exception e) {
+//                        Log.e(TAG, "onFailure: geofence add failed");
+//                    }
+//                });
+//    }
 
     public void btnStartTracking(View view){
 //        mDatabase.setValue(locationModel, new DatabaseReference.CompletionListener() {
