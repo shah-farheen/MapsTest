@@ -1,12 +1,20 @@
 package com.buggyarts.mapstest;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.graphics.Color;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
 
+import com.buggyarts.mapstest.models.StopsModel;
+import com.buggyarts.mapstest.models.eta.ETAModel;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -23,13 +31,21 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
+import com.google.gson.Gson;
 
 import org.w3c.dom.Document;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
@@ -46,6 +62,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private ValueEventListener locationEventListener;
     int initial = 0;
 
+    private ArrayList<StopsModel> stopsList;
+    private Gson gson;
+    private Handler uiHandler;
+    private OkHttpClient okHttpClient;
     private static final String TAG = "MapsActivity";
     private PolylineOptions polylineOptions;
 
@@ -62,15 +82,29 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
+        gson = new Gson();
+        uiHandler = new Handler();
+        okHttpClient = new OkHttpClient();
         locationDatabase = FirebaseDatabase.getInstance().getReference().child("location");
         geofenceDatabase = FirebaseDatabase.getInstance().getReference().child("geofence");
         locationEventListener = getLocationEventListener();
         geofenceEventListener = getGeofenceEventListener();
-        locationModel = new LocationModel();
+//        locationModel = new LocationModel();
         geofenceModel = new GeofenceModel();
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(trackingReceiver, new IntentFilter(Utility.ACTION_START_TRACKING));
 
 //        locationDatabase.addChildEventListener(getChildEventListener());
     }
+
+    private BroadcastReceiver trackingReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if(intent.getAction().equals(Utility.ACTION_START_TRACKING)){
+                Log.e(TAG, "onReceive: ");
+            }
+        }
+    };
 
     @Override
     protected void onPause() {
@@ -95,6 +129,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.e(TAG, "onStop: geofence Listener removed");
             geofenceDatabase.removeEventListener(geofenceEventListener);
         }
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(trackingReceiver);
     }
 
     private ValueEventListener getLocationEventListener(){
@@ -102,6 +137,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 Log.e(TAG, "onDataChange: " + dataSnapshot.toString());
+                if(locationModel == null){
+                    locationModel = new LocationModel();
+                    locationModel.updateModel(dataSnapshot.getValue(LocationModel.class));
+                    makeETARequest(new LatLng(locationModel.getLat(), locationModel.getLng()));
+                }
                 locationModel.updateModel(dataSnapshot.getValue(LocationModel.class));
                 locationMarker.setPosition(new LatLng(locationModel.getLat(), locationModel.getLng()));
                 locationMarker.setRotation(locationModel.getBearing());
@@ -346,5 +386,88 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 //            Toast.makeText(activity, activity.getString(R.string.error_when_retrieving_data), 3000).show();
         }
 
+    }
+
+    private void getETA(LatLng origin, LatLng dest, final String destName){
+        Request getETARequest = new Request.Builder()
+                .url(getETAUrl(origin, dest))
+                .build();
+        okHttpClient.newCall(getETARequest).enqueue(new Callback() {
+            @Override
+            public void onFailure(Call call, final IOException e) {
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(getApplicationContext(), e.getMessage(), Toast.LENGTH_SHORT).show();
+                        makeETARequest(new LatLng(locationModel.getLat(), locationModel.getLng()));
+                    }
+                });
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+//                Log.e(TAG, "onResponse: " + response.body().string());
+                final ETAModel etaModel = gson.fromJson(response.body().string(), ETAModel.class);
+                if(etaModel.getStatus().equals(Utility.STATUS_OK)){
+                    runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(getApplicationContext(), destName + ": " +
+                                    etaModel.getRows().get(0).getElements()
+                                            .get(0).getDuration().getText(), Toast.LENGTH_SHORT).show();
+                            makeETARequest(new LatLng(locationModel.getLat(), locationModel.getLng()));
+                        }
+                    });
+                }
+                else {
+                    Log.e(TAG, "onResponse: " + etaModel.getStatus());
+                    Log.e(TAG, "onResponse: " + call.request().url().toString());
+                }
+            }
+        });
+    }
+
+    private String getETAUrl(LatLng origin, LatLng dest){
+        String BASE_URL = "https://maps.googleapis.com/maps/api/distancematrix/json?" +
+                "traffic_model=best_guess";
+        StringBuilder stringBuilder = new StringBuilder()
+                .append(BASE_URL)
+                .append("&origins=").append(origin.latitude).append(",").append(origin.longitude)
+                .append("&destinations=").append(dest.latitude).append(",").append(dest.longitude)
+                .append("&departure_time=").append(System.currentTimeMillis())
+                .append("&key=AIzaSyByN2xQaioGFbjpd-7h9qJg4iWXbxlQ3Zs");
+        return stringBuilder.toString();
+    }
+
+    private ArrayList<StopsModel> getStopsList(){
+        if(stopsList == null) {
+            stopsList = new ArrayList<>();
+            stopsList.add(new StopsModel("Logix Technova", 28.509452, 77.3721957));
+            stopsList.add(new StopsModel("Adobe 132", 28.5073325, 77.3770577));
+            stopsList.add(new StopsModel("Between adobe/somerville", 28.507811, 77.376241));
+            stopsList.add(new StopsModel("Somerville school", 28.5090114, 77.3726282));
+            stopsList.add(new StopsModel("Sunsource Energy", 28.5097953, 77.3713751));
+            stopsList.add(new StopsModel("Paras one33", 28.5104963, 77.3701158));
+            stopsList.add(new StopsModel("InfoEdge India", 28.5131503, 77.3708086));
+            stopsList.add(new StopsModel("Jaypee Hospital", 28.5142023, 77.3707435));
+            stopsList.add(new StopsModel("DPS Noida", 28.5166238, 77.3731782));
+            stopsList.add(new StopsModel("HDFC bank", 28.5164083, 77.3768369));
+            stopsList.add(new StopsModel("Genesis Global School", 28.513897, 77.3792909));
+            stopsList.add(new StopsModel("Residential apartment", 28.5135714, 77.3814703));
+            stopsList.add(new StopsModel("Turn for questin.co", 28.512234, 77.383984));
+            stopsList.add(new StopsModel("ATS bouquet", 28.5102488, 77.3800319));
+        }
+        return stopsList;
+    }
+
+    private void makeETARequest(final LatLng currentLocation){
+        uiHandler.postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                for(StopsModel model : getStopsList()){
+                    getETA(currentLocation, new LatLng(model.getLat(), model.getLng()), model.getName());
+                }
+            }
+        }, 10000);
     }
 }

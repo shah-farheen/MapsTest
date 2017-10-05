@@ -13,6 +13,7 @@ import android.os.Message;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -87,6 +88,7 @@ public class TrackerService extends Service{
         Log.e(TAG, "onStartCommand: ");
         if(!isAlreadyRunning){
             getLocation();
+            LocalBroadcastManager.getInstance(this).sendBroadcast(new Intent(Utility.ACTION_START_TRACKING));
         }
         isAlreadyRunning = true;
         return START_STICKY;
@@ -217,7 +219,7 @@ public class TrackerService extends Service{
     }
 
     private void addGeofencesToList(){
-        geofenceList.add(createGeofence("Questin", 28.5077602, 77.3788803));
+//        geofenceList.add(createGeofence("Questin", 28.5077602, 77.3788803));
         geofenceList.add(createGeofence("Logix Technova", 28.509452, 77.3721957));
         geofenceList.add(createGeofence("Adobe 132", 28.5073325, 77.3770577));
         geofenceList.add(createGeofence("Between adobe/somerville", 28.507811, 77.376241));

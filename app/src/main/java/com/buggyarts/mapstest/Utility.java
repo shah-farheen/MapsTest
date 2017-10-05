@@ -8,6 +8,10 @@ import com.google.android.gms.location.LocationRequest;
 
 public class Utility {
 
+    public static final String ACTION_START_TRACKING = "ACTION_START_TRACKING";
+    public static final String STATUS_DENIED = "REQUEST_DENIED";
+    public static final String STATUS_OK = "OK";
+
     public static LocationRequest createLocationRequest() {
         LocationRequest mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(3000);
